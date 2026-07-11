@@ -19,7 +19,7 @@ def get_db_connection():
 con = get_db_connection()
 
 # --- Data Fetching ---
-@st.cache_data
+@st.cache_data(ttl=3600)
 def load_data():
     # Query the data directly from the cloud
     query = """
