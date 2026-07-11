@@ -1,7 +1,8 @@
 import duckdb
+import os
 
 # --- Configuration ---
-MOTHERDUCK_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InNoYXNod2F0c2hyaXZhc3RhdmEyMDAzQGdtYWlsLmNvbSIsIm1kUmVnaW9uIjoiYXdzLWV1LWNlbnRyYWwtMSIsInNlc3Npb24iOiJzaGFzaHdhdHNocml2YXN0YXZhMjAwMy5nbWFpbC5jb20iLCJwYXQiOiJYNHNCNzJCcDBFbk1hVDRWa0tNbEVKX3ZYNkNMNnB2M0xCSno5YUF5Mm1BIiwidXNlcklkIjoiZmFkNGFlMjctN2I4Ni00YmNiLWEzYTktNTM5OGQyYjNlMmIzIiwiaXNzIjoibWRfcGF0IiwicmVhZE9ubHkiOmZhbHNlLCJ0b2tlblR5cGUiOiJyZWFkX3dyaXRlIiwiaWF0IjoxNzgzNzY4MTUyfQ.sTQ_BJPYer0Fvdw-7-hYNSnpTWhchGl908pRs89PZHc"
+MOTHERDUCK_TOKEN = os.getenv("MOTHERDUCK_TOKEN")
 
 # Ensure this matches the EXACT name of the file you generated in Phase 1
 PARQUET_FILE = "premier_league_values_2026-07-11.parquet" 
