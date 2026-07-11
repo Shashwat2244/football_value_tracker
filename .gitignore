@@ -1,0 +1,10 @@
+# Ignore Streamlit secrets
+.streamlit/
+
+# Ignore Python virtual environments
+venv/
+__pycache__/
+
+# Ignore large data files (we don't want to push megabytes of data to GitHub)
+*.parquet
+*.csv
