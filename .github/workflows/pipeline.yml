@@ -1,11 +1,9 @@
 name: Weekly Data Engineering Pipeline
 
-# This determines WHEN the script runs
 on:
   schedule:
-    # Runs at 02:00 AM every Monday (Cron syntax)
     - cron: '0 2 * * 1'
-  workflow_dispatch: # This allows you to click a "Run" button manually on GitHub!
+  workflow_dispatch: 
 
 jobs:
   scrape_and_load:
@@ -13,10 +11,12 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        # UPDATED: Changed from v3 to v4
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        # UPDATED: Changed from v4 to v5
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
@@ -29,7 +29,6 @@ jobs:
         run: python scraper.py
 
       - name: Run Cloud Loader (Load)
-        # We pass the secret from GitHub directly into the script's environment
         env:
           MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
         run: python load_to_motherduck.py
