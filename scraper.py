@@ -1,48 +1,57 @@
-import cloudscraper
+import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 import datetime
+import os
 import time
 import random
 
-HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
-}
+# Read the ScraperAPI key from the environment (GitHub Actions will inject this)
+API_KEY = os.getenv("SCRAPER_API_KEY")
 
-# The main page for the Premier League
+# If testing locally without the key, this will remind you
+if not API_KEY:
+    print("WARNING: No SCRAPER_API_KEY found. Script may fail if running in the cloud.")
+
 LEAGUE_URL = "https://www.transfermarkt.com/premier-league/startseite/wettbewerb/GB1"
 BASE_DOMAIN = "https://www.transfermarkt.com"
 
-def get_club_urls(scraper):
-    """
-    Scrapes the main league page to find the URLs for all 20 clubs.
-    """
+def get_proxied_url(target_url):
+    """Wraps the target URL in the ScraperAPI proxy."""
+    if API_KEY:
+        return f"http://api.scraperapi.com?api_key={API_KEY}&url={target_url}"
+    return target_url
+
+def get_club_urls():
     print("Fetching club links from the Premier League main page...")
-    response = scraper.get(LEAGUE_URL, headers=HEADERS)
+    
+    # We use the proxy URL here
+    response = requests.get(get_proxied_url(LEAGUE_URL))
+    
+    if response.status_code != 200:
+        print(f"Failed to fetch league page: HTTP {response.status_code}")
+        return []
+
     soup = BeautifulSoup(response.text, 'html.parser')
-    
-    # Transfermarkt stores the main club table under this specific class
     table = soup.find('table', class_='items')
-    club_links = []
     
+    # --- ERROR HANDLING ADDED HERE ---
+    if not table:
+        print("CRITICAL ERROR: Could not find the main table. Cloudflare might have blocked the request.")
+        return []
+    # ---------------------------------
+
+    club_links = []
     rows = table.find('tbody').find_all('tr')
     for row in rows:
-        # The club link is usually in the second column (td) under an 'a' tag
         td = row.find_all('td', class_='hauptlink')
-        if not td:
-            continue
+        if not td: continue
             
         a_tag = td[0].find('a')
         if a_tag and 'href' in a_tag.attrs:
             club_name = a_tag.text.strip()
-            raw_link = a_tag['href']
-            
-            # Transfermarkt links point to the 'startseite' (overview). 
-            # We need to change it to the detailed squad view ('kader' + '/plus/1')
-            detailed_link = raw_link.replace('startseite', 'kader') + "/plus/1"
-            full_url = BASE_DOMAIN + detailed_link
-            
-            club_links.append({"club_name": club_name, "url": full_url})
+            detailed_link = a_tag['href'].replace('startseite', 'kader') + "/plus/1"
+            club_links.append({"club_name": club_name, "url": BASE_DOMAIN + detailed_link})
             
     print(f"Found {len(club_links)} clubs.")
     return club_links
@@ -54,16 +63,17 @@ def clean_market_value(value_str):
     elif 'k' in value_str: return int(float(value_str.replace('k', '')) * 1_000)
     return 0
 
-def scrape_team_data(scraper, url, club_name, scrape_date):
-    """
-    Scrapes the player data for a single club.
-    """
+def scrape_team_data(url, club_name, scrape_date):
     print(f"Scraping {club_name}...")
-    response = scraper.get(url, headers=HEADERS)
+    
+    # We use the proxy URL here too
+    response = requests.get(get_proxied_url(url))
     soup = BeautifulSoup(response.text, 'html.parser')
     
     table = soup.find('table', class_='items')
-    if not table: return []
+    if not table: 
+        print(f"Failed to find player table for {club_name}")
+        return []
 
     players_data = []
     rows = table.find('tbody').find_all('tr', class_=['odd', 'even'])
@@ -95,25 +105,16 @@ def scrape_team_data(scraper, url, club_name, scrape_date):
     return players_data
 
 if __name__ == "__main__":
-    # Create one scraper session to maintain cookies
-    scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False})
     scrape_date = datetime.date.today().isoformat()
-    
     all_league_players = []
     
-    # 1. Get all 20 club URLs dynamically
-    clubs = get_club_urls(scraper)
+    clubs = get_club_urls()
     
-    # 2. Loop through each club and scrape their players
     for club in clubs:
-        team_data = scrape_team_data(scraper, club['url'], club['club_name'], scrape_date)
+        team_data = scrape_team_data(club['url'], club['club_name'], scrape_date)
         all_league_players.extend(team_data)
+        time.sleep(random.uniform(1.0, 2.5))
         
-        # CRITICAL: Be polite to the server to avoid getting IP banned
-        sleep_time = random.uniform(2.0, 4.0) 
-        time.sleep(sleep_time)
-        
-    # 3. Export the massive dataset
     if all_league_players:
         df = pd.DataFrame(all_league_players)
         print(f"\n--- Scraping Complete: Found {len(df)} total players ---")
@@ -121,4 +122,3 @@ if __name__ == "__main__":
         filename = f"premier_league_values_{scrape_date}.parquet"
         df.to_parquet(filename, index=False)
         print(f"Data successfully saved to {filename}")
-        
