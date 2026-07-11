@@ -48,7 +48,7 @@ If you want to clone this repository and run the pipeline on your own machine:
 
 1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/](https://github.com/)[Your GitHub Username]/football_value_tracker.git
+   git clone https://github.com/Shashwat2244/football_value_tracker.git
    cd football_value_tracker
 Set up a virtual environment and install dependencies:
 
