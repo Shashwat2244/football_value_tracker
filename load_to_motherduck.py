@@ -1,11 +1,18 @@
+import sys
 import duckdb
 import os
+import datetime
 
 # --- Configuration ---
 MOTHERDUCK_TOKEN = os.getenv("MOTHERDUCK_TOKEN")
 
-# Ensure this matches the EXACT name of the file you generated in Phase 1
-PARQUET_FILE = "premier_league_values_2026-07-11.parquet" 
+if not MOTHERDUCK_TOKEN:
+    print("CRITICAL ERROR: MOTHERDUCK_TOKEN environment variable is not set!")
+    sys.exit(1)
+
+# DYNAMICALLY calculate today's date so it matches the scraper exactly
+today_date = datetime.date.today().isoformat()
+PARQUET_FILE = f"premier_league_values_{today_date}.parquet"
 
 def load_data_to_cloud():
     print("Connecting to MotherDuck Cloud...")
