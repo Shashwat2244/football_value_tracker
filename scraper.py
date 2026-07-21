@@ -5,11 +5,11 @@ import datetime
 import os
 import time
 import random
+import sys  # Added to handle exit codes cleanly
 
 # Read the ScraperAPI key from the environment (GitHub Actions will inject this)
 API_KEY = os.getenv("SCRAPER_API_KEY")
 
-# If testing locally without the key, this will remind you
 if not API_KEY:
     print("WARNING: No SCRAPER_API_KEY found. Script may fail if running in the cloud.")
 
@@ -22,24 +22,27 @@ def get_proxied_url(target_url):
         return f"http://api.scraperapi.com?api_key={API_KEY}&url={target_url}"
     return target_url
 
-def get_club_urls():
+def get_club_urls(max_retries=3):
     print("Fetching club links from the Premier League main page...")
     
-    # We use the proxy URL here
-    response = requests.get(get_proxied_url(LEAGUE_URL))
-    
-    if response.status_code != 200:
-        print(f"Failed to fetch league page: HTTP {response.status_code}")
-        return []
+    table = None
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(get_proxied_url(LEAGUE_URL), timeout=30)
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+                table = soup.find('table', class_='items')
+                if table:
+                    break
+            print(f"Attempt {attempt + 1} failed for main league page. Retrying in 5s...")
+            time.sleep(5)
+        except Exception as e:
+            print(f"Attempt {attempt + 1} failed for main league page with error: {e}. Retrying in 5s...")
+            time.sleep(5)
 
-    soup = BeautifulSoup(response.text, 'html.parser')
-    table = soup.find('table', class_='items')
-    
-    # --- ERROR HANDLING ADDED HERE ---
     if not table:
-        print("CRITICAL ERROR: Could not find the main table. Cloudflare might have blocked the request.")
+        print("CRITICAL ERROR: Could not find the main table after retries. Cloudflare blocked the request.")
         return []
-    # ---------------------------------
 
     club_links = []
     rows = table.find('tbody').find_all('tr')
@@ -66,24 +69,22 @@ def clean_market_value(value_str):
 def scrape_team_data(url, club_name, scrape_date, max_retries=3):
     print(f"Scraping {club_name}...")
     
+    table = None
     for attempt in range(max_retries):
         try:
-            # We use the proxy URL here
             response = requests.get(get_proxied_url(url), timeout=30)
             soup = BeautifulSoup(response.text, 'html.parser')
             
             table = soup.find('table', class_='items')
             if table: 
-                # SUCCESS! Break out of the retry loop
                 break
             else:
-                print(f"Attempt {attempt + 1} failed for {club_name}: Table not found. Retrying...")
-                time.sleep(8) # Wait 3 seconds before retrying
+                print(f"Attempt {attempt + 1} failed for {club_name}: Table not found. Retrying in 5s...")
+                time.sleep(5)
         except Exception as e:
-            print(f"Attempt {attempt + 1} failed for {club_name} with error: {e}. Retrying...")
+            print(f"Attempt {attempt + 1} failed for {club_name} with error: {e}. Retrying in 5s...")
             time.sleep(5)
     
-    # If we tried 3 times and still don't have a table, skip the team
     if not table:
         print(f"CRITICAL: Failed to scrape {club_name} after {max_retries} attempts.")
         return []
@@ -135,3 +136,6 @@ if __name__ == "__main__":
         filename = f"premier_league_values_{scrape_date}.parquet"
         df.to_parquet(filename, index=False)
         print(f"Data successfully saved to {filename}")
+    else:
+        print("\nCRITICAL ERROR: No players scraped. Aborting pipeline before loading to MotherDuck.")
+        sys.exit(1)
