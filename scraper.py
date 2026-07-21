@@ -78,10 +78,10 @@ def scrape_team_data(url, club_name, scrape_date, max_retries=3):
                 break
             else:
                 print(f"Attempt {attempt + 1} failed for {club_name}: Table not found. Retrying...")
-                time.sleep(3) # Wait 3 seconds before retrying
+                time.sleep(8) # Wait 3 seconds before retrying
         except Exception as e:
             print(f"Attempt {attempt + 1} failed for {club_name} with error: {e}. Retrying...")
-            time.sleep(3)
+            time.sleep(5)
     
     # If we tried 3 times and still don't have a table, skip the team
     if not table:
