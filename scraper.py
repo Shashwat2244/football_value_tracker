@@ -63,16 +63,29 @@ def clean_market_value(value_str):
     elif 'k' in value_str: return int(float(value_str.replace('k', '')) * 1_000)
     return 0
 
-def scrape_team_data(url, club_name, scrape_date):
+def scrape_team_data(url, club_name, scrape_date, max_retries=3):
     print(f"Scraping {club_name}...")
     
-    # We use the proxy URL here too
-    response = requests.get(get_proxied_url(url))
-    soup = BeautifulSoup(response.text, 'html.parser')
+    for attempt in range(max_retries):
+        try:
+            # We use the proxy URL here
+            response = requests.get(get_proxied_url(url), timeout=30)
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            table = soup.find('table', class_='items')
+            if table: 
+                # SUCCESS! Break out of the retry loop
+                break
+            else:
+                print(f"Attempt {attempt + 1} failed for {club_name}: Table not found. Retrying...")
+                time.sleep(3) # Wait 3 seconds before retrying
+        except Exception as e:
+            print(f"Attempt {attempt + 1} failed for {club_name} with error: {e}. Retrying...")
+            time.sleep(3)
     
-    table = soup.find('table', class_='items')
-    if not table: 
-        print(f"Failed to find player table for {club_name}")
+    # If we tried 3 times and still don't have a table, skip the team
+    if not table:
+        print(f"CRITICAL: Failed to scrape {club_name} after {max_retries} attempts.")
         return []
 
     players_data = []
